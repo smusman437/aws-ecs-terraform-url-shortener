@@ -1,0 +1,6 @@
+# Copy to terraform.tfvars (gitignored) and edit for your account
+aws_region    = "us-east-1"
+environment   = "dev"
+desired_count = 1
+
+enable_autoscaling = false
