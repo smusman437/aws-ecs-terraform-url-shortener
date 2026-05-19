@@ -34,11 +34,13 @@ From the **project root**:
 | Script | What it does |
 |--------|----------------|
 | `./scripts/local.sh` | Build + run app on `http://localhost:8080` |
-| `./scripts/deploy.sh dev` | Full AWS deploy (Terraform + ECR + ECS) — dev settings |
-| `./scripts/deploy.sh prod` | Full AWS deploy — prod settings (2 tasks, auto-scaling) |
+| `./scripts/plan.sh dev` | **Preview** infra changes only (no apply) |
+| `./scripts/deploy.sh dev` | Plan → review → apply → ECR → ECS (full deploy) |
+| `./scripts/deploy.sh prod` | Same for prod (2 tasks, auto-scaling) — see [PROD.md](./PROD.md) |
+| `./scripts/redeploy-app.sh dev` | **App code only** — image push + ECS (no Terraform) |
 | `./scripts/status.sh` | Show ECS + ALB health |
 | `./scripts/test-api.sh` | Test `/health`, `/shorten`, redirect |
-| `./scripts/destroy.sh dev` | **Delete all AWS resources** (dev) |
+| `./scripts/destroy.sh dev` | **Delete all AWS resources** |
 
 **Always set profile first** (add to `~/.zshrc` if you like):
 
@@ -168,6 +170,15 @@ flowchart LR
 ---
 
 ## Phase 5 — Update app after code changes
+
+> Full decision table and Terraform concepts: **[TERRAFORM.md](./TERRAFORM.md)**
+
+| You changed | Run |
+|-------------|-----|
+| `app.py` / Dockerfile only | `./scripts/redeploy-app.sh dev` |
+| `infra/*.tf` or task count | `./scripts/plan.sh dev` then `./scripts/deploy.sh dev` |
+| Preview infra only | `./scripts/plan.sh dev` or `prod` |
+| Not sure | `./scripts/deploy.sh dev` (always works) |
 
 You changed `app.py`? Redeploy image only (faster than full Terraform):
 

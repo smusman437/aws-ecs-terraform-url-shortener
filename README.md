@@ -25,13 +25,16 @@ A production-style URL shortener API built with Flask, Docker, and AWS (ECR, ECS
 export AWS_PROFILE=terraform-user
 
 ./scripts/local.sh              # Run on localhost:8080
-./scripts/deploy.sh dev         # Deploy full stack to AWS
+./scripts/plan.sh dev           # Preview Terraform changes (no apply)
+./scripts/deploy.sh dev         # Plan → apply → ECR → ECS (full deploy)
+./scripts/redeploy-app.sh dev   # App code only (no Terraform)
 ./scripts/status.sh             # Check ECS + ALB health
 ./scripts/test-api.sh           # Test live or local API
 ./scripts/destroy.sh dev        # Tear down all AWS resources
 ```
 
 See **[GUIDE.md](./GUIDE.md)** for step-by-step explanations (what, why, in order) and destroy instructions.  
+See **[TERRAFORM.md](./TERRAFORM.md)** for what Terraform is, how it works, which files matter, and what to run after code changes.  
 Each script in `scripts/` includes inline comments on every important line.
 
 ## Project structure
@@ -44,7 +47,9 @@ Each script in `scripts/` includes inline comments on every important line.
 ├── GUIDE.md               # Step-by-step guide + script usage
 ├── ROADMAP.md             # Architecture, env vars, deep reference
 ├── scripts/
-│   ├── deploy.sh          # One-command full deploy
+│   ├── plan.sh            # Terraform plan only (review)
+│   ├── deploy.sh          # Plan + apply + ECR + ECS
+│   ├── redeploy-app.sh    # App code only (fast)
 │   ├── destroy.sh         # One-command teardown
 │   ├── test-api.sh        # Health + shorten + redirect tests
 │   ├── status.sh          # ECS / ALB status

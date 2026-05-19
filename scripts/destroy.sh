@@ -14,12 +14,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 # shellcheck source=lib/common.sh
 source "${SCRIPT_DIR}/lib/common.sh"
 
-ENV="${1:-dev}"
-case "$ENV" in
-  dev)  TFVARS="terraform.tfvars" ;;
-  prod) TFVARS="prod.tfvars" ;;
-  *)    die "Usage: ./scripts/destroy.sh [dev|prod]" ;;
-esac
+resolve_env "${1:-dev}"
 
 check_aws_profile
 check_terraform

@@ -110,3 +110,57 @@ wait_for_ecs_healthy() {
 get_api_url() {
   (cd "$INFRA_DIR" && terraform output -raw api_url 2>/dev/null)
 }
+
+# Parse first argument as dev or prod; sets ENV and TFVARS
+resolve_env() {
+  ENV="${1:-dev}"
+  case "$ENV" in
+    dev)  TFVARS="terraform.tfvars" ;;
+    prod) TFVARS="prod.tfvars" ;;
+    *)
+      die "Invalid environment '${ENV}'. Use: dev or prod"
+      ;;
+  esac
+  export ENV TFVARS
+}
+
+# Ensure terraform.tfvars exists for dev (copy from example)
+ensure_tfvars() {
+  cd "$INFRA_DIR"
+  if [[ "$TFVARS" == "terraform.tfvars" && ! -f "$TFVARS" ]]; then
+    cp terraform.tfvars.example terraform.tfvars
+    warn "Created terraform.tfvars from example"
+  fi
+  if [[ "$TFVARS" == "prod.tfvars" && ! -f "$TFVARS" ]]; then
+    die "Missing prod.tfvars. Copy infra/prod.tfvars.example to infra/prod.tfvars"
+  fi
+}
+
+# Run terraform init in infra/
+terraform_init() {
+  cd "$INFRA_DIR"
+  terraform init -input=false
+}
+
+# Run terraform plan, then ask user to confirm before apply (unless AUTO_APPROVE=1)
+# Usage: terraform_plan_review  →  plan only, always stops before apply
+#        terraform_plan_confirm →  plan then prompt → apply on yes
+terraform_plan_only() {
+  cd "$INFRA_DIR"
+  log "Terraform plan (${ENV}, -var-file=${TFVARS}) — review changes below"
+  echo ""
+  terraform plan -var-file="$TFVARS" -input=false
+  echo ""
+}
+
+terraform_plan_confirm() {
+  terraform_plan_only
+  if [[ "${AUTO_APPROVE:-}" == "1" ]]; then
+    log "AUTO_APPROVE=1 — applying plan..."
+  else
+    read -r -p "Apply the plan above? Type 'yes' to continue: " confirm
+    [[ "$confirm" == "yes" ]] || die "Aborted (no changes applied)."
+  fi
+  # -auto-approve here: you already confirmed above (avoids Terraform asking twice)
+  terraform apply -var-file="$TFVARS" -auto-approve -input=false
+}
