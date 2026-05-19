@@ -73,6 +73,15 @@ export AWS_REGION=us-east-1
 ./scripts/test-api.sh http://localhost:8080
 ```
 
+### Swagger UI (interactive testing)
+
+Open in your browser:
+
+- **Local:** http://localhost:8080/apidocs  
+- **Live:** `http://<your-alb-dns>/apidocs`
+
+Use **Try it out** on each endpoint to send requests without `curl`.
+
 ### What you should see
 
 - Container logs: `Running on http://0.0.0.0:8080`

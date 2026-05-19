@@ -1,4 +1,5 @@
 from flask import Flask, request, jsonify, redirect
+from flasgger import Swagger
 import os
 import random
 import string
@@ -9,6 +10,42 @@ url_store = {}
 
 BASE_URL = os.environ.get("BASE_URL", "http://localhost:8080").rstrip("/")
 
+# Swagger UI at /apidocs — interactive API testing in the browser
+swagger_config = {
+    "headers": [],
+    "specs": [
+        {
+            "endpoint": "apispec",
+            "route": "/apispec.json",
+            "rule_filter": lambda rule: True,
+            "model_filter": lambda tag: True,
+        }
+    ],
+    "static_url_path": "/flasgger_static",
+    "swagger_ui": True,
+    "specs_route": "/apidocs",
+}
+
+swagger_template = {
+    "swagger": "2.0",
+    "info": {
+        "title": "URL Shortener API",
+        "description": "Create short links and redirect to original URLs. "
+        "Use **Try it out** on each endpoint below to test.",
+        "version": "1.0.0",
+    },
+    "host": BASE_URL.replace("http://", "").replace("https://", ""),
+    "basePath": "/",
+    "schemes": ["http"] if BASE_URL.startswith("http://") else ["https"],
+    "tags": [
+        {"name": "Health", "description": "Load balancer health checks"},
+        {"name": "Shortener", "description": "Create and resolve short URLs"},
+        {"name": "Debug", "description": "Development helpers (remove in production)"},
+    ],
+}
+
+Swagger(app, config=swagger_config, template=swagger_template)
+
 
 def generate_code(length=6):
     chars = string.ascii_letters + string.digits
@@ -17,11 +54,68 @@ def generate_code(length=6):
 
 @app.route("/health", methods=["GET"])
 def health():
+    """Health check for ALB and monitoring
+    ---
+    tags:
+      - Health
+    responses:
+      200:
+        description: Service is healthy
+        schema:
+          type: object
+          properties:
+            status:
+              type: string
+              example: ok
+    """
     return jsonify({"status": "ok"}), 200
 
 
 @app.route("/shorten", methods=["POST"])
 def shorten():
+    """Create a short code for a long URL
+    ---
+    tags:
+      - Shortener
+    consumes:
+      - application/json
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required:
+            - url
+          properties:
+            url:
+              type: string
+              example: https://www.google.com
+              description: The long URL to shorten
+    responses:
+      201:
+        description: Short URL created
+        schema:
+          type: object
+          properties:
+            short_code:
+              type: string
+              example: xK9mP2
+            original:
+              type: string
+              example: https://www.google.com
+            short_url:
+              type: string
+              example: http://localhost:8080/xK9mP2
+      400:
+        description: Missing or invalid request body
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: "Please provide a 'url' field"
+    """
     data = request.get_json()
 
     if not data or "url" not in data:
@@ -44,6 +138,29 @@ def shorten():
 
 @app.route("/<code>", methods=["GET"])
 def redirect_url(code):
+    """Redirect to the original URL for a short code
+    ---
+    tags:
+      - Shortener
+    parameters:
+      - in: path
+        name: code
+        type: string
+        required: true
+        description: Short code from POST /shorten
+        example: xK9mP2
+    responses:
+      302:
+        description: Redirects to the original URL (browser follows automatically)
+      404:
+        description: Short code not found
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+              example: Short code not found
+    """
     original = url_store.get(code)
     if not original:
         return jsonify({"error": "Short code not found"}), 404
@@ -52,6 +169,20 @@ def redirect_url(code):
 
 @app.route("/all", methods=["GET"])
 def list_all():
+    """List all stored URL mappings (debug only)
+    ---
+    tags:
+      - Debug
+    responses:
+      200:
+        description: All code → URL mappings in memory
+        schema:
+          type: object
+          additionalProperties:
+            type: string
+          example:
+            xK9mP2: https://www.google.com
+    """
     return jsonify(url_store), 200
 
 

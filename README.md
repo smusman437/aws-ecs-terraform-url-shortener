@@ -8,6 +8,7 @@ A production-style URL shortener API built with Flask, Docker, and AWS (ECR, ECS
 - `GET /{code}` — redirect to the original URL
 - `GET /health` — health check for load balancers
 - `GET /all` — list all mappings (debug only; remove in real production)
+- **`GET /apidocs`** — Swagger UI to test all endpoints in the browser
 
 ## Prerequisites
 
@@ -77,6 +78,9 @@ Test:
 
 ```bash
 curl http://localhost:8080/health
+
+# Or open Swagger UI in your browser:
+open http://localhost:8080/apidocs
 
 curl -X POST http://localhost:8080/shorten \
   -H "Content-Type: application/json" \

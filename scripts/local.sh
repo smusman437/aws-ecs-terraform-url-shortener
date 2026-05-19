@@ -15,6 +15,7 @@ echo "==> Building image..."
 docker build --platform linux/arm64 -t url-shortener .
 
 echo "==> Starting container on http://localhost:8080"
+echo "    Swagger UI: http://localhost:8080/apidocs"
 echo "    Press Ctrl+C to stop"
 # --rm = delete container when stopped
 # -p 8080:8080 = map laptop port 8080 → container port 8080

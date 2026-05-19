@@ -58,5 +58,13 @@ status=$(curl -s -o /dev/null -w "%{http_code}" -L "${BASE_URL}/${CODE}") || fai
 log "4. List all (debug endpoint)"
 curl -sf "${BASE_URL}/all" >/dev/null && pass "GET /all"
 
+log "5. Swagger UI reachable"
+if curl -sf "${BASE_URL}/apidocs" >/dev/null 2>&1; then
+  pass "GET /apidocs (open in browser to test interactively)"
+else
+  warn "Swagger UI not reachable at ${BASE_URL}/apidocs"
+fi
+
 echo ""
 echo "All tests passed for ${BASE_URL}"
+echo "Swagger UI: ${BASE_URL}/apidocs"
