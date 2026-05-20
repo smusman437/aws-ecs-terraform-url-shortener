@@ -343,8 +343,7 @@ cd infra && terraform destroy -var-file=terraform.tfvars
 | `scripts/deploy.sh` | One-command deploy |
 | `scripts/destroy.sh` | One-command teardown |
 | `scripts/test-api.sh` | One-command API tests |
-| `ROADMAP.md` | Deeper architecture + env variable reference |
-| `plan.md` | Original tutorial with inline comments |
+| [INFRASTRUCTURE.md](./INFRASTRUCTURE.md) | VPC, ALB, ECS, diagrams, interview Q&A |
 
 ---
 

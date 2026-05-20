@@ -1,173 +1,67 @@
-# URL Shortener — AWS ECS + Terraform
+# URL Shortener API
 
-A production-style URL shortener API built with Flask, Docker, and AWS (ECR, ECS Fargate, ALB). Infrastructure is defined with Terraform.
+Flask URL shortener deployed on **AWS ECS Fargate** with **Terraform**, **ECR**, and an **Application Load Balancer**.
 
-## Features
+## API
 
-- `POST /shorten` — create a short code for a long URL
-- `GET /{code}` — redirect to the original URL
-- `GET /health` — health check for load balancers
-- `GET /all` — list all mappings (debug only; remove in real production)
-- **`GET /apidocs`** — Swagger UI to test all endpoints in the browser
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/health` | Health check (ALB) |
+| `POST` | `/shorten` | Create short code (`{"url":"..."}`) |
+| `GET` | `/{code}` | Redirect to original URL |
+| `GET` | `/apidocs` | Swagger UI |
 
 ## Prerequisites
 
-| Tool | Purpose |
-|------|---------|
-| [Docker Desktop](https://www.docker.com/products/docker-desktop) | Build and run containers |
-| [Python 3.12+](https://www.python.org/downloads) | Optional: run Flask without Docker |
-| [AWS account](https://aws.amazon.com/free) | Cloud deployment |
-| [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html) | AWS API access |
-| [Terraform 1.7+](https://developer.hashicorp.com/terraform/install) | Infrastructure as code |
+- Docker, AWS CLI, Terraform 1.7+ (`darwin_arm64` on Apple Silicon)
+- IAM user with deploy permissions (e.g. `terraform-user`)
+- `aws configure --profile terraform-user`
 
-## Easy commands (recommended)
+## Quick start
 
 ```bash
 export AWS_PROFILE=terraform-user
 
-./scripts/local.sh              # Run on localhost:8080
-./scripts/plan.sh dev           # Preview Terraform changes (no apply)
-./scripts/deploy.sh dev         # Plan → apply → ECR → ECS (full deploy)
-./scripts/redeploy-app.sh dev   # App code only (no Terraform)
-./scripts/status.sh             # Check ECS + ALB health
-./scripts/test-api.sh           # Test live or local API
-./scripts/destroy.sh dev        # Tear down all AWS resources
+./scripts/local.sh                 # http://localhost:8080
+./scripts/plan.sh dev              # preview infra changes
+./scripts/deploy.sh dev            # deploy to AWS
+./scripts/redeploy-app.sh dev      # app-only update
+./scripts/test-api.sh              # smoke tests
+./scripts/destroy.sh dev           # tear down AWS resources
 ```
 
-See **[GUIDE.md](./GUIDE.md)** for step-by-step explanations (what, why, in order) and destroy instructions.  
-See **[TERRAFORM.md](./TERRAFORM.md)** for what Terraform is, how it works, which files matter, and what to run after code changes.  
-Each script in `scripts/` includes inline comments on every important line.
+**Swagger:** `http://localhost:8080/apidocs` (local) or `http://<alb-dns>/apidocs` (live)
 
-## Project structure
+## Repository layout
 
 ```
-├── app.py                 # Flask API
-├── requirements.txt       # Python dependencies
-├── Dockerfile             # Container image recipe
-├── .env.example           # Environment variable template
-├── GUIDE.md               # Step-by-step guide + script usage
-├── ROADMAP.md             # Architecture, env vars, deep reference
-├── scripts/
-│   ├── plan.sh            # Terraform plan only (review)
-│   ├── deploy.sh          # Plan + apply + ECR + ECS
-│   ├── redeploy-app.sh    # App code only (fast)
-│   ├── destroy.sh         # One-command teardown
-│   ├── test-api.sh        # Health + shorten + redirect tests
-│   ├── status.sh          # ECS / ALB status
-│   ├── local.sh           # Run locally with Docker
-│   └── deploy-image.sh    # Build + push to ECR only
-└── infra/
-    ├── main.tf            # Root Terraform (ECR + modules)
-    ├── variables.tf
-    ├── terraform.tfvars   # Dev defaults (gitignored — copy from example)
-    ├── prod.tfvars        # Production values
-    └── modules/
-        ├── networking/    # VPC, subnets, IGW
-        └── ecs/           # ECS, ALB, auto-scaling, alarms
-```
-
-## Quick start — local (Docker)
-
-```bash
-# From project root
-docker build -t url-shortener .
-docker run -p 8080:8080 url-shortener
-```
-
-Test:
-
-```bash
-curl http://localhost:8080/health
-
-# Or open Swagger UI in your browser:
-open http://localhost:8080/apidocs
-
-curl -X POST http://localhost:8080/shorten \
-  -H "Content-Type: application/json" \
-  -d '{"url": "https://www.google.com"}'
-
-# Replace SHORT_CODE with the code from the response
-curl -L http://localhost:8080/SHORT_CODE
-```
-
-Optional: copy `.env.example` to `.env` and set `BASE_URL` if you use a different host/port.
-
-## Quick start — AWS production
-
-1. **Configure AWS CLI** (one time):
-
-   ```bash
-   aws configure
-   aws sts get-caller-identity
-   ```
-
-2. **Export deployment variables**:
-
-   ```bash
-   export AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-   export AWS_REGION=us-east-1
-   ```
-
-3. **Provision infrastructure**:
-
-   ```bash
-   cd infra
-   terraform init
-   terraform apply -var-file=terraform.tfvars   # dev
-   # or
-   terraform apply -var-file=prod.tfvars        # production
-   ```
-
-   Save outputs: `ecr_uri` and `api_url`.
-
-4. **Push Docker image to ECR**:
-
-   ```bash
-   cd ..
-   chmod +x scripts/deploy-image.sh
-   ./scripts/deploy-image.sh
-   ```
-
-5. **Force ECS to pull the new image** (after first push or code changes):
-
-   ```bash
-   aws ecs update-service \
-     --cluster url-shortener-cluster \
-     --service url-shortener-service \
-     --force-new-deployment \
-     --region us-east-1
-   ```
-
-6. **Test live API** (use `api_url` from Terraform output):
-
-   ```bash
-   curl http://YOUR-ALB-DNS/health
-   ```
-
-## Environment variables
-
-| Variable | Used by | Where to get it |
-|----------|---------|-----------------|
-| `BASE_URL` | Flask (`app.py`) | Local: `http://localhost:8080`. Production: set automatically in ECS task definition to your ALB URL |
-| `AWS_ACCOUNT_ID` | Deploy scripts | `aws sts get-caller-identity --query Account --output text` |
-| `AWS_REGION` | AWS CLI / Terraform | e.g. `us-east-1` (must match `infra/variables.tf`) |
-| `AWS_ACCESS_KEY_ID` | AWS CLI | IAM user → Security credentials → Create access key |
-| `AWS_SECRET_ACCESS_KEY` | AWS CLI | Same CSV download when key is created (shown once) |
-
-AWS credentials are **not** stored in this repo. Use `aws configure` or environment variables; see [ROADMAP.md](./ROADMAP.md) for details.
-
-## Tear down
-
-```bash
-cd infra
-terraform destroy -var-file=terraform.tfvars
+├── app.py, Dockerfile, requirements.txt
+├── scripts/              # deploy, destroy, redeploy, plan, test
+├── infra/                # Terraform (VPC, ECS, ALB, ECR)
+│   ├── main.tf
+│   └── modules/{networking,ecs}/
+└── docs/                 # guides and architecture
 ```
 
 ## Documentation
 
-- **[ROADMAP.md](./ROADMAP.md)** — phased roadmap, why each file/line exists, local vs production, where every env value comes from
-- **[plan.md](./plan.md)** — original detailed tutorial plan
+| Doc | Purpose |
+|-----|---------|
+| [docs/INFRASTRUCTURE.md](docs/INFRASTRUCTURE.md) | VPC, subnets, traffic flow, Terraform wiring |
+| [docs/GUIDE.md](docs/GUIDE.md) | Full deployment guide |
+| [docs/TERRAFORM.md](docs/TERRAFORM.md) | Terraform commands and file reference |
+| [docs/PROD.md](docs/PROD.md) | Production deployment |
+
+## Environment variables
+
+| Variable | Purpose |
+|----------|---------|
+| `BASE_URL` | Set in ECS for `short_url` in API responses |
+| `AWS_PROFILE` | `terraform-user` (or your deploy profile) |
+| `AWS_ACCOUNT_ID` | Used by deploy scripts for ECR |
+
+See [.env.example](.env.example). Do not commit secrets or `terraform.tfstate`.
 
 ## License
 
-MIT (use freely for learning and projects).
+MIT

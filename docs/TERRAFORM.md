@@ -259,4 +259,4 @@ Prefer: change `.tf` files and run `apply`, or `./scripts/destroy.sh` for full c
 ./scripts/destroy.sh dev
 ```
 
-See also: [GUIDE.md](./GUIDE.md) (scripts + phases), [ROADMAP.md](./ROADMAP.md) (deep AWS architecture).
+See also: [GUIDE.md](./GUIDE.md) (scripts + phases), [INFRASTRUCTURE.md](./INFRASTRUCTURE.md) (AWS architecture deep dive).

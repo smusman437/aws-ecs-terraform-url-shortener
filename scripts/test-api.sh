@@ -54,11 +54,8 @@ log "3. Redirect"
 status=$(curl -s -o /dev/null -w "%{http_code}" -L "${BASE_URL}/${CODE}") || fail "GET /${CODE}"
 [[ "$status" == "200" ]] && pass "redirect HTTP ${status}" || fail "redirect HTTP ${status}"
 
-# --- Test 4: GET /all — debug endpoint listing all URLs ---
-log "4. List all (debug endpoint)"
-curl -sf "${BASE_URL}/all" >/dev/null && pass "GET /all"
-
-log "5. Swagger UI reachable"
+# --- Test 4: Swagger UI ---
+log "4. Swagger UI reachable"
 if curl -sf "${BASE_URL}/apidocs" >/dev/null 2>&1; then
   pass "GET /apidocs (open in browser to test interactively)"
 else

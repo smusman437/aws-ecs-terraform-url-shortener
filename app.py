@@ -40,7 +40,6 @@ swagger_template = {
     "tags": [
         {"name": "Health", "description": "Load balancer health checks"},
         {"name": "Shortener", "description": "Create and resolve short URLs"},
-        {"name": "Debug", "description": "Development helpers (remove in production)"},
     ],
 }
 
@@ -136,7 +135,7 @@ def shorten():
     }), 201
 
 
-@app.route("/<code>", methods=["GET"])
+@app.route("/<code>", methods=["GET"], endpoint="redirect_url")
 def redirect_url(code):
     """Redirect to the original URL for a short code
     ---
@@ -165,25 +164,6 @@ def redirect_url(code):
     if not original:
         return jsonify({"error": "Short code not found"}), 404
     return redirect(original, code=302)
-
-
-@app.route("/all", methods=["GET"])
-def list_all():
-    """List all stored URL mappings (debug only)
-    ---
-    tags:
-      - Debug
-    responses:
-      200:
-        description: All code → URL mappings in memory
-        schema:
-          type: object
-          additionalProperties:
-            type: string
-          example:
-            xK9mP2: https://www.google.com
-    """
-    return jsonify(url_store), 200
 
 
 if __name__ == "__main__":

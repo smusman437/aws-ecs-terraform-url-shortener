@@ -6,7 +6,7 @@ terraform {
     }
   }
 
-  # Uncomment after creating the S3 bucket and DynamoDB table (see ROADMAP.md Phase 5b).
+  # Optional: remote state — see docs/GUIDE.md
   # backend "s3" {
   #   bucket         = "url-shortener-terraform-state"
   #   key            = "url-shortener/terraform.tfstate"

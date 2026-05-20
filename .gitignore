@@ -2,7 +2,7 @@
 *.tfstate
 *.tfstate.*
 .terraform/
-.terraform.lock.hcl
+# Commit .terraform.lock.hcl for reproducible provider versions
 crash.log
 crash.*.log
 override.tf
