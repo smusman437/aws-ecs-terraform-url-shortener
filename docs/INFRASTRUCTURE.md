@@ -12,59 +12,21 @@ This document explains **what each AWS piece is**, **how traffic flows**, and **
 
 ## 2. Traffic flow (request path)
 
-```mermaid
-sequenceDiagram
-    participant User as Internet user
-    participant ALB as Application Load Balancer :80
-    participant TG as Target Group
-    participant Task as ECS Fargate task :8080
-    participant App as Flask container
-    participant ECR as ECR registry
+### Request sequence (runtime)
 
-    Note over ECR,Task: At deploy time only
-    ECR->>Task: Pull image :latest
+![Request flow: User → ALB → Target Group → ECS task → Flask](./diagrams/01-request-sequence.png)
 
-    User->>ALB: GET /health or POST /shorten
-    ALB->>TG: Forward if target healthy
-    TG->>Task: HTTP to task private IP:8080
-    Task->>App: Process request
-    App-->>Task: JSON or 302 redirect
-    Task-->>ALB: Response
-    ALB-->>User: Response
-```
+1. User sends `GET /health` or `POST /shorten` to the ALB on port **80**
+2. ALB forwards to the target group if the task is **healthy**
+3. Target group sends HTTP to the task private IP on port **8080**
+4. Flask returns JSON or a **302 redirect**
+5. Response returns through ALB to the user
 
-```mermaid
-flowchart TB
-    subgraph internet [Internet]
-        U[Users]
-    end
+*(At deploy time, ECS pulls the image from ECR — shown at the top of the diagram.)*
 
-    subgraph vpc ["VPC 10.0.0.0/16"]
-        subgraph azA ["AZ us-east-1a — subnet 10.0.1.0/24"]
-            ALB1[ALB node]
-            T1[ECS task]
-        end
-        subgraph azB ["AZ us-east-1b — subnet 10.0.2.0/24"]
-            ALB2[ALB node]
-            T2[ECS task]
-        end
-        IGW[Internet Gateway]
-    end
+### Network topology (VPC)
 
-    ECR[(ECR url-shortener)]
-    CW[CloudWatch Logs]
-
-    U -->|HTTP :80| ALB1
-    U --> ALB2
-    ALB1 --> T1
-    ALB2 --> T2
-    T1 -->|pull image| ECR
-    T2 --> ECR
-    T1 --> CW
-    T2 --> CW
-    vpc --> IGW
-    IGW --> internet
-```
+![VPC layout: two AZs, ALB, ECS tasks, IGW, ECR, CloudWatch](./diagrams/02-network-topology.png)
 
 **Key rule:** Users never connect directly to ECS tasks. They only talk to the ALB.
 
@@ -218,46 +180,13 @@ This is **not** your `terraform-user` CLI user. It’s a role the **ECS agent** 
 
 ## 4. How Terraform files link together
 
-```mermaid
-flowchart TB
-    subgraph root ["infra/main.tf"]
-        ECR[aws_ecr_repository]
-        MOD_N[module networking]
-        MOD_E[module ecs]
-        OUT1[output ecr_uri]
-        OUT2[output api_url]
-    end
+### Provision order (`terraform apply`)
 
-    subgraph net ["modules/networking"]
-        VPC[aws_vpc]
-        SUB[aws_subnet x2]
-        IGW[aws_internet_gateway]
-        RT[aws_route_table]
-        OUT_N1[vpc_id]
-        OUT_N2[public_subnet_ids]
-    end
+![Terraform creates ECR, networking, then ECS resources](./diagrams/03-terraform-provision-flow.png)
 
-    subgraph ecs_mod ["modules/ecs"]
-        CLUSTER[aws_ecs_cluster]
-        TASK[aws_ecs_task_definition]
-        SVC[aws_ecs_service]
-        ALB[aws_lb]
-        TG[aws_lb_target_group]
-        SG[security groups]
-        OUT_E1[api_url]
-    end
+### Module inputs and outputs
 
-    MOD_N --> net
-    MOD_E --> ecs_mod
-    VPC --> SUB
-    SUB --> RT
-    IGW --> RT
-    OUT_N1 --> MOD_E
-    OUT_N2 --> MOD_E
-    ECR -->|repository_url| TASK
-    MOD_E --> OUT2
-    ALB --> OUT_E1
-```
+![main.tf passes vpc_id, subnets, ECR URL, and desired_count into module.ecs](./diagrams/04-terraform-module-inputs.png)
 
 ### Data flow between modules
 
@@ -337,21 +266,12 @@ A: Calls `GET /health`. Failing tasks are removed from the target group; ECS rep
 
 ## 8. Deploy vs redeploy (operations)
 
-```mermaid
-flowchart LR
-    subgraph code [App change only]
-        A1[Edit app.py] --> A2[redeploy-app.sh]
-        A2 --> A3[ECR push]
-        A3 --> A4[ECS rollout]
-    end
+![App change: redeploy-app.sh vs Infra change: plan.sh and deploy.sh](./diagrams/05-deploy-vs-redeploy.png)
 
-    subgraph infra [Infra change]
-        B1[Edit .tf] --> B2[plan.sh]
-        B2 --> B3[deploy.sh]
-        B3 --> B4[terraform apply]
-        B4 --> B5[ECR + ECS]
-    end
-```
+| Path | When | Script |
+|------|------|--------|
+| **App only** | `app.py` / Dockerfile changed | `./scripts/redeploy-app.sh` |
+| **Infra** | `infra/*.tf` changed | `./scripts/plan.sh` → `./scripts/deploy.sh` |
 
 ---
 

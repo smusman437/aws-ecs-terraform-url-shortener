@@ -40,7 +40,8 @@ export AWS_PROFILE=terraform-user
 ├── infra/                # Terraform (VPC, ECS, ALB, ECR)
 │   ├── main.tf
 │   └── modules/{networking,ecs}/
-└── docs/                 # guides and architecture
+└── docs/                 # guides, diagrams, architecture
+    └── diagrams/         # architecture PNGs
 ```
 
 ## Documentation
